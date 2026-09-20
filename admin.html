@@ -1,0 +1,1552 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BABOUCHE — Admin Portal</title>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Work+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+
+<style>
+:root{ --oat:#F3EFE6; --paper:#FBF9F4; --ink:#2B2A26; --spruce:#3E5245; --lingon:#9C3F30; --line:#D9D2C1; --muted:#7A7466; --gold:#C29B38; }
+*{ box-sizing:border-box; }
+body{ margin:0; background:var(--oat); color:var(--ink); font-family:'Work Sans',sans-serif; }
+body.is-reordering{ user-select:none; -webkit-user-select:none; overflow-x:hidden; }
+button, input, select, textarea{ font-family:inherit; }
+
+.admin-container{ max-width:1100px; margin:auto; padding:24px 20px 60px; }
+.topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:20px; flex-wrap:wrap; gap:10px; }
+.brand h1{ margin:0; font-family:'Fraunces',serif; font-size:26px; color:var(--spruce); }
+.brand p{ margin:2px 0 0; color:var(--muted); font-size:12px; }
+
+/* TABS */
+.tabs{ display:flex; gap:6px; margin-bottom:24px; border-bottom:1px solid var(--line); flex-wrap:wrap; }
+.tab-btn{ background:none; border:0; padding:10px 16px; font-size:13px; font-weight:600; color:var(--muted); cursor:pointer; border-bottom:2px solid transparent; margin-bottom:-1px; }
+.tab-btn.active{ color:var(--spruce); border-bottom-color:var(--spruce); }
+.tab-panel{ display:none; }
+.tab-panel.active{ display:block; }
+
+.grid{ display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+.card{ background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:24px; margin-bottom:20px; }
+.card-header{ display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; border-bottom:1px solid var(--line); padding-bottom:10px; flex-wrap:wrap; gap:10px; }
+.card-title{ font-family:'Fraunces',serif; font-size:18px; color:var(--spruce); margin:0; }
+.card-sub{ font-size:12px; color:var(--muted); margin:2px 0 0; }
+
+
+.delete-btn{ background:none; border:1px solid #e0c8c5; color:var(--lingon); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; }
+.delete-btn:hover{ background:#fdf2f0; }
+.edit-btn{ background:none; border:1px solid var(--line); color:var(--spruce); padding:6px 12px; border-radius:8px; cursor:pointer; font-size:12px; font-weight:600; }
+.edit-btn:hover{ background:#fff; }
+
+.form-group{ margin-bottom:12px; }
+.form-group label{ display:block; font-size:11px; text-transform:uppercase; color:var(--muted); margin-bottom:5px; font-weight:600; }
+.form-group input, .form-group select, .form-group textarea{ width:100%; padding:10px 12px; border:1px solid var(--line); border-radius:8px; font-size:14px; outline:none; background:white; }
+.form-group textarea{ resize:vertical; min-height:44px; }
+.form-row{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+.form-row-2{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media(max-width:700px){ .form-row, .form-row-2{ grid-template-columns:1fr; } }
+
+.lang-tag{ display:inline-block; font-size:10px; font-weight:700; color:var(--gold); background:#faf3e2; border-radius:5px; padding:1px 6px; margin-left:4px; vertical-align:middle; }
+
+.btn-primary{ background:var(--spruce); color:white; border:0; padding:12px; border-radius:8px; font-weight:600; cursor:pointer; width:100%; }
+.btn-secondary{ background:white; color:var(--spruce); border:1px solid var(--line); padding:10px 12px; border-radius:8px; font-weight:600; cursor:pointer; }
+.btn-danger{ background:var(--lingon); color:white; border:0; padding:10px 14px; border-radius:8px; font-weight:600; cursor:pointer; }
+
+/* CATEGORY LIST */
+.cat-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.cat-row{ display:flex; align-items:center; justify-content:space-between; gap:10px; background:white; border:1px solid var(--line); border-radius:10px; padding:10px 14px; transition:.15s ease; cursor:grab; }
+.cat-row:active{ cursor:grabbing; }
+.cat-row.dragging,.item-row.dragging{ opacity:.45; transform:scale(.99); }
+.cat-row.drag-over,.item-row.drag-over{ border-color:var(--gold); box-shadow:0 0 0 2px rgba(194,155,56,.16); }
+.drag-handle{ width:36px; height:36px; border:1px solid var(--line); border-radius:8px; display:flex; align-items:center; justify-content:center; color:var(--muted); flex-shrink:0; font-size:17px; letter-spacing:-3px; user-select:none; cursor:grab; touch-action:none; -webkit-user-select:none; -webkit-touch-callout:none; }
+.drag-handle:active{ cursor:grabbing; background:var(--oat); }
+@media(max-width:700px){
+  .admin-container{ padding:16px 12px 48px; }
+  .card{ padding:16px; border-radius:14px; }
+  .cat-row,.item-row{ padding:9px 10px; gap:8px; }
+  .item-row{ flex-wrap:nowrap; }
+  .item-row-main{ min-width:0; }
+  .item-row-price{ font-size:13px; white-space:nowrap; }
+  .item-row-actions,.cat-actions{ gap:4px; }
+  .icon-btn{ width:34px; height:34px; }
+  .drag-handle{ width:36px; height:36px; }
+}
+.drag-placeholder{ height:4px; background:var(--gold); border-radius:4px; margin:2px 8px; opacity:.8; }
+.cat-row.selected{ border-color:var(--spruce); box-shadow:0 0 0 1px var(--spruce) inset; }
+.cat-row-main{ cursor:pointer; flex:1; }
+.cat-row-name{ font-weight:600; font-size:14px; color:var(--spruce); }
+.cat-row-sub{ font-size:11px; color:var(--muted); }
+.cat-actions{ display:flex; gap:6px; flex-shrink:0; }
+.icon-btn{ background:none; border:1px solid var(--line); border-radius:7px; width:28px; height:28px; cursor:pointer; font-size:13px; color:var(--muted); display:flex; align-items:center; justify-content:center; }
+.icon-btn:hover{ background:#fff; color:var(--spruce); }
+
+/* ITEM LIST */
+.item-list{ display:flex; flex-direction:column; gap:8px; margin-bottom:18px; }
+.item-row{ display:flex; align-items:center; gap:12px; background:white; border:1px solid var(--line); border-radius:10px; padding:10px 14px; transition:.15s ease; cursor:grab; }
+.item-row:active{ cursor:grabbing; }
+.item-thumb{ width:44px; height:44px; border-radius:8px; object-fit:cover; background:var(--oat); flex-shrink:0; }
+.item-thumb-fallback{ width:44px; height:44px; border-radius:8px; background:var(--oat); flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:16px; }
+.item-row-main{ flex:1; min-width:0; }
+.item-row-name{ font-weight:600; font-size:14px; color:var(--ink); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.item-row-sub{ font-size:11px; color:var(--muted); }
+.item-row-price{ font-size:13px; font-weight:600; color:var(--lingon); white-space:nowrap; }
+.item-row-actions{ display:flex; gap:6px; flex-shrink:0; }
+.availability-badge{ font-size:10px; font-weight:700; padding:2px 7px; border-radius:20px; }
+.availability-badge.on{ background:#e7f0ea; color:var(--spruce); }
+.availability-badge.off{ background:#f5e6e3; color:var(--lingon); }
+
+.empty-note{ font-size:13px; color:var(--muted); text-align:center; padding:16px 0; }
+
+.toast{ position:fixed; right:20px; bottom:20px; background:var(--spruce); color:white; padding:12px 18px; border-radius:10px; font-size:13px; opacity:0; transition:.2s; pointer-events:none; z-index:2000; }
+.toast.show{ opacity:1; }
+
+.modal-overlay{ position:fixed; inset:0; background:rgba(43,42,38,.5); display:none; align-items:center; justify-content:center; z-index:1500; padding:16px; }
+.modal-overlay.open{ display:flex; }
+.modal-box{ background:var(--paper); border-radius:16px; padding:24px; width:min(560px,100%); max-height:90vh; overflow-y:auto; }
+
+@media(max-width:800px){ .grid{ grid-template-columns:1fr; } }
+
+/* LOGIN OVERLAY */
+.login-overlay{
+  position:fixed; inset:0; background:var(--oat);
+  display:flex; align-items:center; justify-content:center;
+  z-index:3000; padding:20px;
+}
+.login-overlay.unlocked{ display:none; }
+.login-box{
+  background:var(--paper); border:1px solid var(--line); border-radius:16px;
+  padding:28px 26px; width:min(360px,100%);
+  box-shadow:0 20px 40px rgba(43,42,38,.08);
+}
+
+/* IMAGE UPLOAD */
+.image-upload-wrap{ display:flex; align-items:center; gap:12px; }
+.image-preview{ width:64px; height:64px; border-radius:10px; object-fit:cover; background:white; border:1px solid var(--line); flex-shrink:0; }
+.image-preview-empty{ width:64px; height:64px; border-radius:10px; background:white; border:1px dashed var(--line); flex-shrink:0; display:flex; align-items:center; justify-content:center; color:var(--muted); font-size:20px; }
+.image-upload-controls{ flex:1; display:flex; flex-direction:column; gap:6px; }
+.image-upload-controls input[type="file"]{ font-size:12px; }
+.remove-photo-link{ font-size:11px; color:var(--lingon); background:none; border:0; padding:0; text-align:left; cursor:pointer; text-decoration:underline; width:auto; }
+.text-link{ font-size:12px; color:var(--spruce); background:none; border:0; padding:0; cursor:pointer; text-decoration:underline; width:auto; }
+.upload-status{ font-size:11px; color:var(--muted); }
+
+/* ADMINISTRATORS */
+.admin-list{display:flex;flex-direction:column;gap:8px;}
+.admin-row{display:flex;align-items:center;justify-content:space-between;gap:12px;background:white;border:1px solid var(--line);border-radius:10px;padding:11px 12px;}
+.admin-main{min-width:0;}
+.admin-email{font-weight:600;font-size:13px;color:var(--ink);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.admin-meta{font-size:11px;color:var(--muted);margin-top:2px;}
+.role-badge{display:inline-flex;align-items:center;padding:3px 7px;border-radius:999px;background:#faf3e2;color:#8b6a16;font-size:10px;font-weight:700;text-transform:uppercase;margin-left:5px;}
+.admin-remove{background:none;border:1px solid #e0c8c5;color:var(--lingon);padding:6px 9px;border-radius:8px;cursor:pointer;font-size:11px;font-weight:600;flex-shrink:0;}
+@media(max-width:700px){.admin-row{align-items:flex-start;}.admin-email{white-space:normal;word-break:break-word;}.admin-remove{padding:8px 9px;}}
+
+/* UX polish */
+.page-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;}
+.preview-link{display:inline-flex;align-items:center;gap:6px;text-decoration:none;background:white;color:var(--spruce);border:1px solid var(--line);padding:9px 12px;border-radius:9px;font-size:12px;font-weight:600;}
+.status-pill{display:inline-flex;align-items:center;gap:6px;padding:6px 9px;border-radius:999px;background:#e7f0ea;color:var(--spruce);font-size:11px;font-weight:700;}
+.status-dot{width:7px;height:7px;border-radius:50%;background:#4d9b63;}
+.upload-hint{font-size:11px;color:var(--muted);margin-top:5px;}
+@media(max-width:700px){.page-actions{width:100%;}.page-actions>*{flex:1;}.topbar{align-items:flex-start;}.cat-row-main{padding:4px 0;}.item-row{min-height:68px;}.item-row .drag-handle{position:relative;z-index:2;}.item-row-actions .icon-btn{width:32px;height:32px;}}
+</style>
+</head>
+<body>
+
+<div class="login-overlay" id="loginOverlay">
+  <div class="login-box">
+    <h1 style="font-family:'Fraunces',serif; color:var(--spruce); margin:0 0 4px;">BABOUCHE</h1>
+    <p style="color:var(--muted); font-size:13px; margin:0 0 18px;" id="loginIntro">Sign in with your admin account to continue.</p>
+
+    <form id="loginForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="loginEmail" autocomplete="username" required autofocus>
+      </div>
+      <div class="form-group">
+        <label>Password</label>
+        <input type="password" id="loginPassword" autocomplete="current-password" required>
+      </div>
+      <div id="loginError" style="color:var(--lingon); font-size:12px; margin-bottom:10px; display:none;">Incorrect email or password.</div>
+      <button type="submit" class="btn-primary">Sign In</button>
+      <div style="margin-top:12px;">
+        <button type="button" class="text-link" id="btnForgotPassword">Forgot password?</button>
+      </div>
+    </form>
+
+    <form id="forgotPasswordForm" style="display:none;">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="forgotEmail" autocomplete="username" required autofocus>
+      </div>
+      <div id="forgotPasswordMessage" style="font-size:12px; margin-bottom:10px; display:none;"></div>
+      <button type="submit" class="btn-primary">Send Reset Link</button>
+      <div style="margin-top:12px;">
+        <button type="button" class="text-link" id="btnBackToLogin">Back to Sign In</button>
+      </div>
+    </form>
+
+    <form id="setPasswordForm" style="display:none;">
+      <div class="form-group">
+        <label>New Password</label>
+        <input type="password" id="setPasswordNew" autocomplete="new-password" required minlength="12">
+      </div>
+      <div class="form-group">
+        <label>Confirm New Password</label>
+        <input type="password" id="setPasswordConfirm" autocomplete="new-password" required minlength="12">
+      </div>
+      <div id="setPasswordError" style="color:var(--lingon); font-size:12px; margin-bottom:10px; display:none;"></div>
+      <button type="submit" class="btn-primary">Set Password &amp; Continue</button>
+    </form>
+
+    <p style="color:var(--muted); font-size:11px; margin:14px 0 0;" id="loginFooterNote">Admin accounts are created in the Supabase Dashboard, not here — see SETUP-README.md.</p>
+  </div>
+</div>
+
+<div class="admin-container" id="adminContainer" style="display:none;">
+  <div class="topbar">
+    <div class="brand">
+      <h1>BABOUCHE</h1>
+      <p>Admin Panel <span id="loggedInAs" style="color:var(--muted);"></span></p>
+    </div>
+    <div style="display:flex; gap:8px;">
+      <button class="btn-secondary" id="btnLogout">Log Out</button>
+    </div>
+  <div class="page-actions"><span class="status-pill"><span class="status-dot"></span> Protected admin</span><a class="preview-link" href="index.html" target="_blank" rel="noopener">👁 Preview menu</a></div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="menu">Menu</button>
+    <button class="tab-btn" data-tab="settings">Restaurant Settings</button>
+  </div>
+
+  <!-- ================= MENU TAB ================= -->
+  <div class="tab-panel active" id="tab-menu">
+    <div class="grid">
+      <!-- CATEGORIES -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title">Categories</h3>
+            <p class="card-sub">Click a category to manage its items. Drag categories to change their order.</p>
+          </div>
+        </div>
+        <div class="cat-list" id="catList">Loading...</div>
+        <button class="btn-primary" id="btnAddCategory" type="button">+ Add Category</button>
+      </div>
+
+      <!-- ITEMS FOR SELECTED CATEGORY -->
+      <div class="card">
+        <div class="card-header">
+          <div>
+            <h3 class="card-title" id="itemsCardTitle">Items</h3>
+            <p class="card-sub" id="itemsCardSub">Select a category on the left.</p>
+          </div>
+        </div>
+        <div class="item-list" id="itemList"></div>
+        <button class="btn-primary" id="btnAddItem" type="button" disabled>+ Add Item</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= SETTINGS TAB ================= -->
+  <div class="tab-panel" id="tab-settings">
+    <div class="card" style="max-width:600px;">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Restaurant Settings</h3>
+          <p class="card-sub">Controls what shows on the public menu page.</p>
+        </div>
+      </div>
+      <form id="settingsForm">
+        <div class="form-group">
+          <label>WhatsApp Number (with country code, digits only)</label>
+          <input type="text" id="settingWhatsapp" placeholder="e.g. 212600000000" inputmode="numeric" pattern="[0-9]{8,15}" maxlength="20" title="Digits only, 8-15 numbers, with country code">
+        </div>
+        <div class="form-group">
+          <label>Header Background Photo</label>
+          <div class="image-upload-wrap">
+            <div id="headerImagePreviewWrap"><div class="image-preview-empty">🖼</div></div>
+            <div class="image-upload-controls">
+              <input type="file" id="headerImageFile" accept="image/jpeg,image/png,image/webp"><div class="upload-hint">JPG, PNG or WebP · up to 5 MB. The image is optimized before upload.</div>
+              <button type="button" class="remove-photo-link" id="headerImageRemoveBtn" style="display:none;">Remove photo</button>
+              <input type="hidden" id="settingHeaderImage">
+            </div>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Default Menu Language</label>
+          <select id="settingDefaultLanguage">
+            <option value="en">English</option>
+            <option value="fr">Français</option>
+            <option value="es">Español</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Google Maps Review URL</label>
+          <input type="url" id="settingGoogleMaps" placeholder="https://g.page/r/YOUR_PLACE/review" maxlength="500">
+        </div>
+        <div class="form-group">
+          <label>Instagram URL</label>
+          <input type="url" id="settingInstagram" placeholder="https://instagram.com/..." maxlength="500">
+        </div>
+        <div class="form-group">
+          <label>TripAdvisor URL</label>
+          <input type="url" id="settingTripadvisor" placeholder="https://tripadvisor.com/..." maxlength="500">
+        </div>
+        <button type="submit" class="btn-primary">Save Settings</button>
+      </form>
+    </div>
+
+    <div class="card" style="max-width:600px;">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">My Account</h3>
+          <p class="card-sub">Change the password for your admin login.</p>
+        </div>
+      </div>
+      <form id="passwordForm">
+        <div class="form-group">
+          <label>New Password</label>
+          <input type="password" id="newAdminPassword" placeholder="At least 12 characters" autocomplete="new-password" minlength="12">
+        </div>
+        <div class="form-group">
+          <label>Confirm New Password</label>
+          <input type="password" id="confirmAdminPassword" placeholder="Repeat new password" autocomplete="new-password" minlength="12">
+        </div>
+        <button type="submit" class="btn-primary">Update My Password</button>
+      </form>
+      <p style="color:var(--muted); font-size:12px; margin:14px 0 0;">Your role is <strong id="myRoleLabel">admin</strong>. Owner-only administrator management appears below.</p>
+    </div>
+
+    <div class="card" id="administratorsCard" style="max-width:600px; display:none;">
+      <div class="card-header">
+        <div>
+          <h3 class="card-title">Administrators</h3>
+          <p class="card-sub">Invite staff without sharing passwords. Only the owner can manage administrator access.</p>
+        </div>
+        <button type="button" class="btn-secondary" id="btnAddAdministrator">+ Add Administrator</button>
+      </div>
+      <div id="adminList" class="admin-list"><div class="empty-note">Loading...</div></div>
+    </div>
+  </div>
+
+<!-- ================= CATEGORY MODAL ================= -->
+<div class="modal-overlay" id="categoryModal">
+  <div class="modal-box">
+    <h3 class="card-title" id="categoryModalTitle">Add Category</h3>
+    <form id="categoryForm">
+      <input type="hidden" id="categoryId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name <span class="lang-tag">EN</span></label>
+          <input type="text" id="categoryNameEn" required maxlength="120">
+        </div>
+        <div class="form-group">
+          <label>Name <span class="lang-tag">FR</span></label>
+          <input type="text" id="categoryNameFr" required maxlength="120">
+        </div>
+        <div class="form-group">
+          <label>Name <span class="lang-tag">ES</span></label>
+          <input type="text" id="categoryNameEs" required maxlength="120">
+        </div>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="submit" class="btn-primary">Save Category</button>
+        <button type="button" class="btn-secondary" onclick="closeCategoryModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= ITEM MODAL ================= -->
+<div class="modal-overlay" id="itemModal">
+  <div class="modal-box">
+    <h3 class="card-title" id="itemModalTitle">Add Item</h3>
+    <form id="itemForm">
+      <input type="hidden" id="itemId">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Name <span class="lang-tag">EN</span></label>
+          <input type="text" id="itemNameEn" required maxlength="150">
+        </div>
+        <div class="form-group">
+          <label>Name <span class="lang-tag">FR</span></label>
+          <input type="text" id="itemNameFr" required maxlength="150">
+        </div>
+        <div class="form-group">
+          <label>Name <span class="lang-tag">ES</span></label>
+          <input type="text" id="itemNameEs" required maxlength="150">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Description <span class="lang-tag">EN</span></label>
+          <textarea id="itemDescEn" maxlength="800"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Description <span class="lang-tag">FR</span></label>
+          <textarea id="itemDescFr" maxlength="800"></textarea>
+        </div>
+        <div class="form-group">
+          <label>Description <span class="lang-tag">ES</span></label>
+          <textarea id="itemDescEs" maxlength="800"></textarea>
+        </div>
+      </div>
+      <div class="form-row-2">
+        <div class="form-group">
+          <label>Price (DH)</label>
+          <input type="number" id="itemPrice" step="0.01" min="0" max="100000" required>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>Photo</label>
+        <div class="image-upload-wrap">
+          <div id="itemImagePreviewWrap"><div class="image-preview-empty">🍽</div></div>
+          <div class="image-upload-controls">
+            <input type="file" id="itemImageFile" accept="image/jpeg,image/png,image/webp"><div class="upload-hint">JPG, PNG or WebP · up to 5 MB. The image is optimized before upload.</div>
+            <button type="button" class="remove-photo-link" id="itemImageRemoveBtn" style="display:none;">Remove photo</button>
+            <input type="hidden" id="itemImageUrl">
+          </div>
+        </div>
+      </div>
+      <div class="form-group">
+        <label style="display:flex; align-items:center; gap:8px; text-transform:none; font-size:13px;">
+          <input type="checkbox" id="itemAvailable" style="width:auto;" checked> Available on the menu
+        </label>
+      </div>
+      <div style="display:flex; gap:10px; margin-top:6px;">
+        <button type="submit" class="btn-primary">Save Item</button>
+        <button type="button" class="btn-secondary" onclick="closeItemModal()">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- ================= ADMINISTRATOR MODAL ================= -->
+<div class="modal-overlay" id="administratorModal">
+  <div class="modal-box">
+    <h3 class="card-title">Add Administrator</h3>
+    <p class="card-sub" style="margin:6px 0 18px;">The person will receive a Supabase invitation email and create their own password. You never need to see or share their password.</p>
+    <form id="administratorForm">
+      <div class="form-group">
+        <label>Email</label>
+        <input type="email" id="administratorEmail" autocomplete="email" placeholder="admin@example.com" required maxlength="320">
+      </div>
+      <div style="display:flex;gap:10px;margin-top:6px;">
+        <button type="submit" class="btn-primary">Send Invitation</button>
+        <button type="button" class="btn-secondary" id="btnCancelAdministrator">Cancel</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+const SUPABASE_URL = 'https://pjqhkpjlluoauoegxgxo.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_FXNglIO3Q6-RaM8G1Mrm2w_kMqw6h7Q';
+const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+
+function getRole(session){ return session?.user?.app_metadata?.role || null; }
+function isAdminSession(session){ return ['admin','owner'].includes(getRole(session)); }
+function isOwnerSession(session){ return getRole(session) === 'owner'; }
+
+
+function escapeHtml(str) { return String(str ?? '').replace(/&/g,'&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function showToast(msg) {
+  const toast = document.getElementById('toast');
+  toast.textContent = msg;
+  toast.classList.add('show');
+  setTimeout(() => toast.classList.remove('show'), 2500);
+}
+
+/* =====================================================
+   TABS
+===================================================== */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b === btn));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + btn.dataset.tab));
+  });
+});
+
+/* =====================================================
+   MENU: CATEGORIES
+===================================================== */
+let categories = [];
+let items = [];
+let selectedCategoryId = null;
+
+const catList = document.getElementById('catList');
+const itemList = document.getElementById('itemList');
+const itemsCardTitle = document.getElementById('itemsCardTitle');
+const itemsCardSub = document.getElementById('itemsCardSub');
+const btnAddItem = document.getElementById('btnAddItem');
+
+async function loadCategories(){
+  const { data, error } = await supabaseClient.from('categories').select('*').order('sort_order', { ascending: true });
+  if (error) {
+    catList.innerHTML = `<div class="empty-note">Error loading categories: ${escapeHtml(error.message || 'Unknown error')}</div>`;
+    return;
+  }
+  categories = data || [];
+  renderCategories();
+  if (!selectedCategoryId && categories.length) {
+    selectCategory(categories[0].id);
+  } else {
+    renderItems();
+  }
+}
+
+function renderCategories(){
+  if (!categories.length) {
+    catList.innerHTML = `<div class="empty-note">No categories yet. Add one below.</div>`;
+    return;
+  }
+  catList.innerHTML = categories.map((cat, index) => `
+    <div class="cat-row ${cat.id === selectedCategoryId ? 'selected' : ''}" draggable="true" data-id="${escapeHtml(cat.id)}" data-index="${index}">
+      <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+      <div class="cat-row-main" onclick="selectCategory('${escapeHtml(cat.id)}')">
+        <div class="cat-row-name">${escapeHtml(cat.name_en)}</div>
+        <div class="cat-row-sub">${escapeHtml(cat.name_fr)} · ${escapeHtml(cat.name_es)}</div>
+      </div>
+      <div class="cat-actions">
+        <button class="icon-btn" title="Edit" onclick="openCategoryModal('${escapeHtml(cat.id)}')">✎</button>
+        <button class="icon-btn" title="Delete" onclick="deleteCategory('${escapeHtml(cat.id)}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+  bindCategoryDragAndDrop();
+}
+
+let draggedCategoryId = null;
+let touchCategoryId = null;
+let touchCategoryTarget = null;
+
+function bindCategoryDragAndDrop(){
+  const rows = [...catList.querySelectorAll('.cat-row')];
+
+  // Desktop: native HTML5 drag and drop
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      draggedCategoryId = row.dataset.id;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedCategoryId);
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      rows.forEach(r => r.classList.remove('drag-over'));
+      draggedCategoryId = null;
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (row.dataset.id !== draggedCategoryId) row.classList.add('drag-over');
+      e.dataTransfer.dropEffect = 'move';
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const targetId = row.dataset.id;
+      if (!draggedCategoryId || draggedCategoryId === targetId) return;
+      await reorderCategory(draggedCategoryId, targetId);
+      draggedCategoryId = null;
+    });
+  });
+
+  // Mobile/tablet: pointer events on the handle (works with touch screens)
+  rows.forEach(row => {
+    const handle = row.querySelector('.drag-handle');
+    if (!handle) return;
+    handle.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      touchCategoryId = row.dataset.id;
+      touchCategoryTarget = null;
+      row.classList.add('dragging');
+      handle.setPointerCapture?.(e.pointerId);
+      document.body.classList.add('is-reordering');
+      handle.addEventListener('pointermove', onCategoryPointerMove);
+      handle.addEventListener('pointerup', onCategoryPointerUp, {once:true});
+      handle.addEventListener('pointercancel', onCategoryPointerCancel, {once:true});
+    });
+  });
+}
+
+function onCategoryPointerMove(e){
+  if (!touchCategoryId) return;
+  e.preventDefault();
+  autoScrollPage(e.clientY);
+  clearDragOver(catList);
+  const target = getRowAtPoint(catList, e.clientX, e.clientY, '.cat-row', touchCategoryId);
+  if (target) {
+    target.classList.add('drag-over');
+    touchCategoryTarget = target.dataset.id;
+  } else {
+    touchCategoryTarget = null;
+  }
+}
+
+async function onCategoryPointerUp(e){
+  if (!touchCategoryId) return;
+  e.preventDefault();
+  const source = touchCategoryId;
+  const target = touchCategoryTarget || getRowAtPoint(catList, e.clientX, e.clientY, '.cat-row', source)?.dataset.id;
+  cleanupPointerDrag(catList, '.cat-row');
+  touchCategoryId = null;
+  touchCategoryTarget = null;
+  if (target && source !== target) await reorderCategory(source, target);
+}
+
+function onCategoryPointerCancel(){
+  cleanupPointerDrag(catList, '.cat-row');
+  touchCategoryId = null;
+  touchCategoryTarget = null;
+}
+
+async function reorderCategory(sourceId, targetId){
+  const from = categories.findIndex(c => c.id === sourceId);
+  const to = categories.findIndex(c => c.id === targetId);
+  if (from < 0 || to < 0 || from === to) return;
+  const [moved] = categories.splice(from, 1);
+  categories.splice(to, 0, moved);
+  await persistCategoryOrder();
+}
+
+async function persistCategoryOrder(){
+  categories.forEach((cat, index) => cat.sort_order = index);
+  renderCategories();
+  const updates = categories.map(cat =>
+    supabaseClient.from('categories').update({ sort_order: cat.sort_order }).eq('id', cat.id)
+  );
+  const results = await Promise.all(updates);
+  const failed = results.find(r => r.error);
+  if (failed) {
+    showToast('Could not save category order');
+    await loadCategories();
+    return;
+  }
+  showToast('Category order saved');
+}
+
+function selectCategory(id){
+  selectedCategoryId = id;
+  renderCategories();
+  renderItems();
+}
+
+async function deleteCategory(id){
+  if (!confirm('Delete this category and all its items? This cannot be undone.')) return;
+  const { error } = await supabaseClient.from('categories').delete().eq('id', id);
+  if (error) { showToast('Error deleting category'); return; }
+  showToast('Category deleted');
+  if (selectedCategoryId === id) selectedCategoryId = null;
+  await loadCategories();
+  await loadItems();
+}
+
+/* Category modal */
+const categoryModal = document.getElementById('categoryModal');
+function openCategoryModal(id){
+  document.getElementById('categoryForm').reset();
+  document.getElementById('categoryId').value = '';
+  document.getElementById('categoryModalTitle').textContent = 'Add Category';
+  if (id){
+    const cat = categories.find(c => c.id === id);
+    if (cat){
+      document.getElementById('categoryModalTitle').textContent = 'Edit Category';
+      document.getElementById('categoryId').value = cat.id;
+      document.getElementById('categoryNameEn').value = cat.name_en || '';
+      document.getElementById('categoryNameFr').value = cat.name_fr || '';
+      document.getElementById('categoryNameEs').value = cat.name_es || '';
+    }
+  }
+  categoryModal.classList.add('open');
+}
+function closeCategoryModal(){ categoryModal.classList.remove('open'); }
+document.getElementById('btnAddCategory').addEventListener('click', () => openCategoryModal(null));
+
+function slugify(str){
+  return String(str).toLowerCase().trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '') || 'category';
+}
+
+document.getElementById('categoryForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const id = document.getElementById('categoryId').value;
+  const name_en = document.getElementById('categoryNameEn').value.trim();
+  const name_fr = document.getElementById('categoryNameFr').value.trim();
+  const name_es = document.getElementById('categoryNameEs').value.trim();
+  const sort_order = id ? undefined : categories.length;
+
+  // Defense in depth: the inputs already have maxlength/required, and the
+  // database has a matching CHECK constraint, but validate here too so the
+  // person gets an immediate, clear message rather than a failed request.
+  for (const [label, value] of [['English name', name_en], ['French name', name_fr], ['Spanish name', name_es]]){
+    if (!value || value.length > 120){
+      showToast(`${label} must be 1–120 characters.`);
+      return;
+    }
+  }
+
+  if (id){
+    const { error } = await supabaseClient.from('categories').update({ name_en, name_fr, name_es }).eq('id', id);
+    if (error) { showToast('Error saving category'); return; }
+  } else {
+    let slug = slugify(name_en);
+    const existingSlugs = new Set(categories.map(c => c.slug));
+    let finalSlug = slug, n = 2;
+    while (existingSlugs.has(finalSlug)) { finalSlug = `${slug}-${n++}`; }
+    const { error } = await supabaseClient.from('categories').insert([{ slug: finalSlug, name_en, name_fr, name_es, sort_order }]);
+    if (error) { showToast('Error creating category'); return; }
+  }
+  showToast('Category saved');
+  closeCategoryModal();
+  await loadCategories();
+});
+
+/* =====================================================
+   MENU: ITEMS
+===================================================== */
+async function loadItems(){
+  const { data, error } = await supabaseClient.from('menu_items').select('*').order('sort_order', { ascending: true });
+  if (error) { itemList.innerHTML = `<div class="empty-note">Error loading items: ${escapeHtml(error.message || 'Unknown error')}</div>`; return; }
+  items = data || [];
+  renderItems();
+}
+
+function renderItems(){
+  if (!selectedCategoryId){
+    itemsCardTitle.textContent = 'Items';
+    itemsCardSub.textContent = 'Select a category on the left.';
+    itemList.innerHTML = '';
+    btnAddItem.disabled = true;
+    return;
+  }
+  const cat = categories.find(c => c.id === selectedCategoryId);
+  itemsCardTitle.textContent = cat ? cat.name_en : 'Items';
+  itemsCardSub.textContent = 'Drag dishes to change their order.';
+  btnAddItem.disabled = false;
+
+  const catItems = items.filter(it => it.category_id === selectedCategoryId);
+  if (!catItems.length){
+    itemList.innerHTML = `<div class="empty-note">No items in this category yet.</div>`;
+    return;
+  }
+
+  itemList.innerHTML = catItems.map((item, index) => `
+    <div class="item-row" draggable="true" data-id="${escapeHtml(item.id)}" data-index="${index}">
+      <div class="drag-handle" title="Drag to reorder">⋮⋮</div>
+      ${item.image_url
+        ? `<img class="item-thumb" src="${escapeHtml(item.image_url)}" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'item-thumb-fallback',textContent:'🍽'}))">`
+        : `<div class="item-thumb-fallback">🍽</div>`}
+      <div class="item-row-main">
+        <div class="item-row-name">${escapeHtml(item.name_en)}
+          <span class="availability-badge ${item.available ? 'on' : 'off'}">${item.available ? 'Available' : 'Hidden'}</span>
+        </div>
+        <div class="item-row-sub">${escapeHtml(item.name_fr)} · ${escapeHtml(item.name_es)}</div>
+      </div>
+      <div class="item-row-price">${item.price} dh</div>
+      <div class="item-row-actions">
+        <button class="icon-btn" title="Edit" onclick="openItemModal('${escapeHtml(item.id)}')">✎</button>
+        <button class="icon-btn" title="Delete" onclick="deleteItem('${escapeHtml(item.id)}')">✕</button>
+      </div>
+    </div>
+  `).join('');
+  bindItemDragAndDrop();
+}
+
+let draggedItemId = null;
+let touchItemId = null;
+let touchItemTarget = null;
+
+function bindItemDragAndDrop(){
+  const rows = [...itemList.querySelectorAll('.item-row')];
+
+  // Desktop: native HTML5 drag and drop
+  rows.forEach(row => {
+    row.addEventListener('dragstart', e => {
+      draggedItemId = row.dataset.id;
+      row.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+      e.dataTransfer.setData('text/plain', draggedItemId);
+    });
+    row.addEventListener('dragend', () => {
+      row.classList.remove('dragging');
+      rows.forEach(r => r.classList.remove('drag-over'));
+      draggedItemId = null;
+    });
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      if (row.dataset.id !== draggedItemId) row.classList.add('drag-over');
+      e.dataTransfer.dropEffect = 'move';
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', async e => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const targetId = row.dataset.id;
+      if (!draggedItemId || draggedItemId === targetId) return;
+      await reorderItem(draggedItemId, targetId);
+      draggedItemId = null;
+    });
+  });
+
+  // Mobile/tablet: pointer events on the handle (works with touch screens)
+  rows.forEach(row => {
+    const handle = row.querySelector('.drag-handle');
+    if (!handle) return;
+    handle.addEventListener('pointerdown', e => {
+      if (e.pointerType === 'mouse' && e.button !== 0) return;
+      e.preventDefault();
+      touchItemId = row.dataset.id;
+      touchItemTarget = null;
+      row.classList.add('dragging');
+      handle.setPointerCapture?.(e.pointerId);
+      document.body.classList.add('is-reordering');
+      handle.addEventListener('pointermove', onItemPointerMove);
+      handle.addEventListener('pointerup', onItemPointerUp, {once:true});
+      handle.addEventListener('pointercancel', onItemPointerCancel, {once:true});
+    });
+  });
+}
+
+function onItemPointerMove(e){
+  if (!touchItemId) return;
+  e.preventDefault();
+  autoScrollPage(e.clientY);
+  clearDragOver(itemList);
+  const target = getRowAtPoint(itemList, e.clientX, e.clientY, '.item-row', touchItemId);
+  if (target) {
+    target.classList.add('drag-over');
+    touchItemTarget = target.dataset.id;
+  } else {
+    touchItemTarget = null;
+  }
+}
+
+async function onItemPointerUp(e){
+  if (!touchItemId) return;
+  e.preventDefault();
+  const source = touchItemId;
+  const target = touchItemTarget || getRowAtPoint(itemList, e.clientX, e.clientY, '.item-row', source)?.dataset.id;
+  cleanupPointerDrag(itemList, '.item-row');
+  touchItemId = null;
+  touchItemTarget = null;
+  if (target && source !== target) await reorderItem(source, target);
+}
+
+function onItemPointerCancel(){
+  cleanupPointerDrag(itemList, '.item-row');
+  touchItemId = null;
+  touchItemTarget = null;
+}
+
+async function reorderItem(sourceId, targetId){
+  const catItems = items.filter(it => it.category_id === selectedCategoryId);
+  const from = catItems.findIndex(i => i.id === sourceId);
+  const to = catItems.findIndex(i => i.id === targetId);
+  if (from < 0 || to < 0 || from === to) return;
+  const [moved] = catItems.splice(from, 1);
+  catItems.splice(to, 0, moved);
+  await persistItemOrder(catItems);
+}
+
+function getRowAtPoint(container, x, y, selector, excludeId){
+  const el = document.elementFromPoint(x, y);
+  const row = el?.closest(selector);
+  if (!row || !container.contains(row) || row.dataset.id === excludeId) return null;
+  return row;
+}
+
+function clearDragOver(container){
+  container.querySelectorAll('.drag-over').forEach(r => r.classList.remove('drag-over'));
+}
+
+function cleanupPointerDrag(container, selector){
+  clearDragOver(container);
+  container.querySelectorAll(selector).forEach(r => r.classList.remove('dragging'));
+  document.body.classList.remove('is-reordering');
+}
+
+function autoScrollPage(y){
+  const edge = 70;
+  const speed = 12;
+  if (y < edge) window.scrollBy(0, -speed);
+  else if (y > window.innerHeight - edge) window.scrollBy(0, speed);
+}
+
+async function persistItemOrder(orderedItems){
+  orderedItems.forEach((item, index) => item.sort_order = index);
+  orderedItems.forEach(item => {
+    const master = items.find(i => i.id === item.id);
+    if (master) master.sort_order = item.sort_order;
+  });
+  renderItems();
+  const results = await Promise.all(orderedItems.map(item =>
+    supabaseClient.from('menu_items').update({ sort_order: item.sort_order }).eq('id', item.id)
+  ));
+  const failed = results.find(r => r.error);
+  if (failed) {
+    showToast('Could not save item order');
+    await loadItems();
+    return;
+  }
+  showToast('Item order saved');
+}
+
+async function deleteItem(id){
+  if (!confirm('Delete this item?')) return;
+  const { error } = await supabaseClient.from('menu_items').delete().eq('id', id);
+  if (error) { showToast('Error deleting item'); return; }
+  showToast('Item deleted');
+  await loadItems();
+}
+
+/* =====================================================
+   IMAGE UPLOADS (Supabase Storage — bucket "menu-images")
+===================================================== */
+async function optimizeImage(file){
+  const allowed=['image/jpeg','image/png','image/webp'];
+  if(!allowed.includes(file.type)) throw new Error('Please choose a JPG, PNG or WebP image.');
+  if(file.size>5*1024*1024) throw new Error('Image must be 5 MB or smaller.');
+  const bitmap=await createImageBitmap(file);
+  const max=1600;
+  const scale=Math.min(1,max/Math.max(bitmap.width,bitmap.height));
+  const canvas=document.createElement('canvas');
+  canvas.width=Math.max(1,Math.round(bitmap.width*scale));
+  canvas.height=Math.max(1,Math.round(bitmap.height*scale));
+  canvas.getContext('2d').drawImage(bitmap,0,0,canvas.width,canvas.height);
+  const blob=await new Promise(resolve=>canvas.toBlob(resolve,'image/webp',.82));
+  if(!blob) throw new Error('Could not optimize image.');
+  return new File([blob],`${crypto.randomUUID()}.webp`,{type:'image/webp'});
+}
+
+async function uploadImage(file, folder){
+  const optimized=await optimizeImage(file);
+  const path = `${folder}/${optimized.name}`;
+  const { error } = await supabaseClient.storage.from('menu-images').upload(path, optimized, { upsert:false, cacheControl:'31536000', contentType:'image/webp' });
+  if (error) throw error;
+  const { data } = supabaseClient.storage.from('menu-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+function renderImagePreview(wrapEl, url, fallbackEmoji){
+  wrapEl.innerHTML = url
+    ? `<img class="image-preview" src="${escapeHtml(url)}" onerror="this.outerHTML='<div class=&quot;image-preview-empty&quot;>${fallbackEmoji}</div>'">`
+    : `<div class="image-preview-empty">${fallbackEmoji}</div>`;
+}
+
+let selectedItemImageFile = null;
+const itemImagePreviewWrap = document.getElementById('itemImagePreviewWrap');
+const itemImageRemoveBtn = document.getElementById('itemImageRemoveBtn');
+
+document.getElementById('itemImageFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedItemImageFile = file;
+  renderImagePreview(itemImagePreviewWrap, URL.createObjectURL(file), '🍽');
+  itemImageRemoveBtn.style.display = '';
+});
+
+itemImageRemoveBtn.addEventListener('click', () => {
+  selectedItemImageFile = null;
+  document.getElementById('itemImageUrl').value = '';
+  document.getElementById('itemImageFile').value = '';
+  renderImagePreview(itemImagePreviewWrap, '', '🍽');
+  itemImageRemoveBtn.style.display = 'none';
+});
+
+/* Item modal */
+const itemModal = document.getElementById('itemModal');
+function openItemModal(id){
+  if (!selectedCategoryId) return;
+  document.getElementById('itemForm').reset();
+  document.getElementById('itemId').value = '';
+  document.getElementById('itemAvailable').checked = true;
+  document.getElementById('itemModalTitle').textContent = 'Add Item';
+  selectedItemImageFile = null;
+  document.getElementById('itemImageUrl').value = '';
+  renderImagePreview(itemImagePreviewWrap, '', '🍽');
+  itemImageRemoveBtn.style.display = 'none';
+  if (id){
+    const item = items.find(it => it.id === id);
+    if (item){
+      document.getElementById('itemModalTitle').textContent = 'Edit Item';
+      document.getElementById('itemId').value = item.id;
+      document.getElementById('itemNameEn').value = item.name_en || '';
+      document.getElementById('itemNameFr').value = item.name_fr || '';
+      document.getElementById('itemNameEs').value = item.name_es || '';
+      document.getElementById('itemDescEn').value = item.desc_en || '';
+      document.getElementById('itemDescFr').value = item.desc_fr || '';
+      document.getElementById('itemDescEs').value = item.desc_es || '';
+      document.getElementById('itemPrice').value = item.price ?? 0;
+      document.getElementById('itemImageUrl').value = item.image_url || '';
+      document.getElementById('itemAvailable').checked = !!item.available;
+      if (item.image_url){
+        renderImagePreview(itemImagePreviewWrap, item.image_url, '🍽');
+        itemImageRemoveBtn.style.display = '';
+      }
+    }
+  }
+  itemModal.classList.add('open');
+}
+function closeItemModal(){ itemModal.classList.remove('open'); }
+btnAddItem.addEventListener('click', () => openItemModal(null));
+
+document.getElementById('itemForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  if (!selectedCategoryId) return;
+  const id = document.getElementById('itemId').value;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+
+  let imageUrl = document.getElementById('itemImageUrl').value.trim() || null;
+  if (selectedItemImageFile){
+    submitBtn.textContent = 'Uploading photo...';
+    try {
+      imageUrl = await uploadImage(selectedItemImageFile, 'items');
+    } catch (err) {
+      console.error(err);
+      showToast(err?.message || 'Photo upload failed');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Item';
+      return;
+    }
+  }
+  submitBtn.textContent = 'Save Item';
+
+  const payload = {
+    category_id: selectedCategoryId,
+    name_en: document.getElementById('itemNameEn').value.trim(),
+    name_fr: document.getElementById('itemNameFr').value.trim(),
+    name_es: document.getElementById('itemNameEs').value.trim(),
+    desc_en: document.getElementById('itemDescEn').value.trim() || null,
+    desc_fr: document.getElementById('itemDescFr').value.trim() || null,
+    desc_es: document.getElementById('itemDescEs').value.trim() || null,
+    price: parseFloat(document.getElementById('itemPrice').value),
+    sort_order: id ? (items.find(it => it.id === id)?.sort_order ?? 0) : items.filter(it => it.category_id === selectedCategoryId).length,
+    image_url: imageUrl,
+    available: document.getElementById('itemAvailable').checked
+  };
+
+  // Defense in depth: inputs already carry maxlength/min/max, and the
+  // database enforces the same bounds via CHECK constraints, but catch
+  // obviously bad input here first for a clear, immediate message.
+  for (const [label, value] of [['English name', payload.name_en], ['French name', payload.name_fr], ['Spanish name', payload.name_es]]){
+    if (!value || value.length > 150){
+      showToast(`${label} must be 1–150 characters.`);
+      submitBtn.disabled = false;
+      return;
+    }
+  }
+  for (const [label, value] of [['English description', payload.desc_en], ['French description', payload.desc_fr], ['Spanish description', payload.desc_es]]){
+    if (value && value.length > 800){
+      showToast(`${label} must be 800 characters or fewer.`);
+      submitBtn.disabled = false;
+      return;
+    }
+  }
+  if (!Number.isFinite(payload.price) || payload.price < 0 || payload.price > 100000){
+    showToast('Price must be a number between 0 and 100,000.');
+    submitBtn.disabled = false;
+    return;
+  }
+  if (payload.image_url && (payload.image_url.length > 2048 || /^\s*(javascript|data|vbscript|file)\s*:/i.test(payload.image_url))){
+    showToast('Photo URL is not valid.');
+    submitBtn.disabled = false;
+    return;
+  }
+
+  if (id){
+    const { error } = await supabaseClient.from('menu_items').update(payload).eq('id', id);
+    if (error) { showToast('Error saving item'); submitBtn.disabled = false; return; }
+  } else {
+    const { error } = await supabaseClient.from('menu_items').insert([payload]);
+    if (error) { showToast('Error creating item'); submitBtn.disabled = false; return; }
+  }
+  showToast('Item saved');
+  submitBtn.disabled = false;
+  selectedItemImageFile = null;
+  closeItemModal();
+  await loadItems();
+});
+
+/* =====================================================
+   RESTAURANT SETTINGS
+===================================================== */
+let selectedHeaderImageFile = null;
+const headerImagePreviewWrap = document.getElementById('headerImagePreviewWrap');
+const headerImageRemoveBtn = document.getElementById('headerImageRemoveBtn');
+
+document.getElementById('headerImageFile').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  selectedHeaderImageFile = file;
+  renderImagePreview(headerImagePreviewWrap, URL.createObjectURL(file), '🖼');
+  headerImageRemoveBtn.style.display = '';
+});
+
+headerImageRemoveBtn.addEventListener('click', () => {
+  selectedHeaderImageFile = null;
+  document.getElementById('settingHeaderImage').value = '';
+  document.getElementById('headerImageFile').value = '';
+  renderImagePreview(headerImagePreviewWrap, '', '🖼');
+  headerImageRemoveBtn.style.display = 'none';
+});
+
+async function loadSettings(){
+  const { data, error } = await supabaseClient.from('settings').select('*');
+  if (error) { showToast('Error loading settings: ' + (error.message || 'Unknown error')); return; }
+  const settings = {};
+  (data || []).forEach(row => { settings[row.key] = row.value; });
+  document.getElementById('settingWhatsapp').value = settings.whatsapp_number || '';
+  document.getElementById('settingHeaderImage').value = settings.header_image_url || '';
+  document.getElementById('settingDefaultLanguage').value = ['en','fr','es'].includes(settings.default_language) ? settings.default_language : 'es';
+  document.getElementById('settingGoogleMaps').value = settings.google_maps_url || '';
+  document.getElementById('settingInstagram').value = settings.instagram_url || '';
+  document.getElementById('settingTripadvisor').value = settings.tripadvisor_url || '';
+  if (settings.header_image_url){
+    renderImagePreview(headerImagePreviewWrap, settings.header_image_url, '🖼');
+    headerImageRemoveBtn.style.display = '';
+  }
+}
+
+document.getElementById('settingsForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+
+  let headerImageUrl = document.getElementById('settingHeaderImage').value.trim();
+  if (selectedHeaderImageFile){
+    submitBtn.textContent = 'Uploading photo...';
+    try {
+      headerImageUrl = await uploadImage(selectedHeaderImageFile, 'header');
+    } catch (err) {
+      console.error(err);
+      showToast(err?.message || 'Photo upload failed');
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Settings';
+      return;
+    }
+  }
+  submitBtn.textContent = 'Save Settings';
+
+  const rows = [
+    { key: 'whatsapp_number', value: document.getElementById('settingWhatsapp').value.trim() },
+    { key: 'header_image_url', value: headerImageUrl },
+    { key: 'default_language', value: document.getElementById('settingDefaultLanguage').value },
+    { key: 'google_maps_url', value: document.getElementById('settingGoogleMaps').value.trim() },
+    { key: 'instagram_url', value: document.getElementById('settingInstagram').value.trim() },
+    { key: 'tripadvisor_url', value: document.getElementById('settingTripadvisor').value.trim() }
+  ];
+
+  // Defense in depth: inputs already carry pattern/type constraints, and
+  // the database caps value length via CHECK constraint, but validate
+  // format here too for an immediate, specific error message.
+  const whatsapp = rows.find(r => r.key === 'whatsapp_number').value;
+  if (whatsapp && !/^[0-9]{8,15}$/.test(whatsapp)){
+    showToast('WhatsApp number must be 8-15 digits, no symbols or spaces.');
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Save Settings';
+    return;
+  }
+  for (const key of ['header_image_url', 'google_maps_url', 'instagram_url', 'tripadvisor_url']){
+    const value = rows.find(r => r.key === key).value;
+    if (value && !/^https?:\/\//i.test(value)){
+      showToast(`${key.replace(/_/g,' ')} must start with http:// or https://`);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Settings';
+      return;
+    }
+    if (value && value.length > 500){
+      showToast(`${key.replace(/_/g,' ')} is too long.`);
+      submitBtn.disabled = false;
+      submitBtn.textContent = 'Save Settings';
+      return;
+    }
+  }
+
+  const { error } = await supabaseClient.from('settings').upsert(rows, { onConflict: 'key' });
+  submitBtn.disabled = false;
+  if (error) { showToast('Error saving settings'); return; }
+  selectedHeaderImageFile = null;
+  document.getElementById('settingHeaderImage').value = headerImageUrl;
+  showToast('Settings saved!');
+});
+
+/* My account: change my own login password (Supabase Auth) */
+document.getElementById('passwordForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const newPass = document.getElementById('newAdminPassword').value;
+  const confirmPass = document.getElementById('confirmAdminPassword').value;
+  if (!newPass){
+    showToast('Enter a new password');
+    return;
+  }
+  if (newPass.length < 12){
+    showToast('Password should be at least 12 characters');
+    return;
+  }
+  if (newPass !== confirmPass){
+    showToast('Passwords do not match');
+    return;
+  }
+  const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+  if (error) { showToast(error.message || 'Error updating password'); return; }
+  showToast('Password updated');
+  document.getElementById('passwordForm').reset();
+});
+
+/* =====================================================
+   ADMINISTRATOR MANAGEMENT (OWNER ONLY)
+===================================================== */
+const administratorsCard = document.getElementById('administratorsCard');
+const adminList = document.getElementById('adminList');
+const administratorModal = document.getElementById('administratorModal');
+const administratorForm = document.getElementById('administratorForm');
+const administratorEmail = document.getElementById('administratorEmail');
+const btnAddAdministrator = document.getElementById('btnAddAdministrator');
+const btnCancelAdministrator = document.getElementById('btnCancelAdministrator');
+let currentSession = null;
+
+function openAdministratorModal(){
+  administratorEmail.value = '';
+  administratorModal.classList.add('open');
+  setTimeout(() => administratorEmail.focus(), 50);
+}
+function closeAdministratorModal(){ administratorModal.classList.remove('open'); }
+btnAddAdministrator?.addEventListener('click', openAdministratorModal);
+btnCancelAdministrator?.addEventListener('click', closeAdministratorModal);
+administratorModal?.addEventListener('click', (e) => { if (e.target === administratorModal) closeAdministratorModal(); });
+
+async function callAdminFunction(body){
+  const { data, error } = await supabaseClient.functions.invoke('manage-admin', { body });
+  if (error) {
+    let message = error.message || 'Administrator action failed.';
+    if (error.context) {
+      try {
+        const payload = await error.context.json();
+        message = payload?.error || message;
+      } catch (_) {}
+    }
+    throw new Error(message);
+  }
+  if (data?.error) throw new Error(data.error);
+  return data;
+}
+
+function renderAdministrators(admins){
+  if (!admins?.length){
+    adminList.innerHTML = '<div class="empty-note">No administrators found.</div>';
+    return;
+  }
+  adminList.innerHTML = admins.map(a => {
+    const isOwner = a.role === 'owner';
+    const date = a.last_sign_in_at ? `Last sign-in: ${new Date(a.last_sign_in_at).toLocaleDateString()}` : (a.email_confirmed_at ? 'Invited / confirmed' : 'Invitation pending');
+    return `<div class="admin-row">
+      <div class="admin-main">
+        <div class="admin-email">${escapeHtml(a.email || 'No email')} <span class="role-badge">${escapeHtml(a.role || 'admin')}</span></div>
+        <div class="admin-meta">${escapeHtml(date)}</div>
+      </div>
+      ${isOwner ? '' : `<button type="button" class="admin-remove" data-admin-id="${escapeHtml(a.id)}" data-admin-email="${escapeHtml(a.email || '')}">Remove access</button>`}
+    </div>`;
+  }).join('');
+
+  adminList.querySelectorAll('.admin-remove').forEach(btn => {
+    btn.addEventListener('click', async () => {
+      const email = btn.dataset.adminEmail || 'this administrator';
+      if (!confirm(`Revoke administrator access for ${email}? They will no longer be able to manage the menu.`)) return;
+      btn.disabled = true;
+      try {
+        const result = await callAdminFunction({ action:'remove', userId:btn.dataset.adminId });
+        showToast(result.message || 'Administrator access revoked');
+        await loadAdministrators();
+      } catch (err) {
+        showToast(err.message || 'Could not remove administrator');
+        btn.disabled = false;
+      }
+    });
+  });
+}
+
+async function loadAdministrators(){
+  if (!currentSession || !isOwnerSession(currentSession)) return;
+  adminList.innerHTML = '<div class="empty-note">Loading administrators...</div>';
+  try {
+    const result = await callAdminFunction({ action:'list' });
+    renderAdministrators(result.admins || []);
+  } catch (err) {
+    adminList.innerHTML = `<div class="empty-note">${escapeHtml(err.message || 'Could not load administrators.')}</div>`;
+  }
+}
+
+administratorForm?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = administratorEmail.value.trim().toLowerCase();
+  const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  if (!email || !emailPattern.test(email) || email.length > 320){
+    showToast('Enter a valid email address.');
+    return;
+  }
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending...';
+  try {
+    const result = await callAdminFunction({ action:'invite', email });
+    closeAdministratorModal();
+    showToast(result.message || 'Invitation sent');
+    await loadAdministrators();
+  } catch (err) {
+    showToast(err.message || 'Could not send invitation');
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Send Invitation';
+  }
+});
+
+/* =====================================================
+   AUTH GATE (Supabase Auth)
+   The page itself is a static file anyone can open, but every table
+   and the storage bucket enforce RLS requiring an authenticated
+   session for writes — see supabase-menu-setup.sql. Signing in here is what grants that session.
+===================================================== */
+const loginOverlay = document.getElementById('loginOverlay');
+const adminContainer = document.getElementById('adminContainer');
+const loginForm = document.getElementById('loginForm');
+const loginError = document.getElementById('loginError');
+const loggedInAs = document.getElementById('loggedInAs');
+const loginIntro = document.getElementById('loginIntro');
+const loginFooterNote = document.getElementById('loginFooterNote');
+const forgotPasswordForm = document.getElementById('forgotPasswordForm');
+const forgotPasswordMessage = document.getElementById('forgotPasswordMessage');
+const setPasswordForm = document.getElementById('setPasswordForm');
+const setPasswordError = document.getElementById('setPasswordError');
+const btnForgotPassword = document.getElementById('btnForgotPassword');
+const btnBackToLogin = document.getElementById('btnBackToLogin');
+let adminInitialized = false;
+
+// Supabase invite/recovery links redirect back to this page with the
+// action type in the URL hash (implicit flow) or query string (PKCE),
+// e.g. #access_token=...&type=invite or ?code=...&type=recovery.
+// Captured immediately, before Supabase's own URL cleanup runs, so we
+// can force a "set your password" step instead of dropping the person
+// straight into the dashboard with no password ever chosen.
+function getAuthUrlType(){
+  const hash = window.location.hash.startsWith('#') ? window.location.hash.slice(1) : window.location.hash;
+  const hashParams = new URLSearchParams(hash);
+  const searchParams = new URLSearchParams(window.location.search);
+  return hashParams.get('type') || searchParams.get('type') || null;
+}
+const authUrlType = getAuthUrlType(); // 'invite' | 'recovery' | null
+let passwordSetPending = (authUrlType === 'invite' || authUrlType === 'recovery');
+
+/* ---- Switch between the three screens inside the login overlay ---- */
+function showLoginScreen(screen){
+  loginForm.style.display = screen === 'login' ? '' : 'none';
+  forgotPasswordForm.style.display = screen === 'forgot' ? '' : 'none';
+  setPasswordForm.style.display = screen === 'setPassword' ? '' : 'none';
+  loginFooterNote.style.display = screen === 'login' ? '' : 'none';
+  if (screen === 'setPassword'){
+    loginIntro.textContent = authUrlType === 'invite'
+      ? 'Welcome! Choose a password to activate your admin account.'
+      : 'Choose a new password for your account.';
+  } else if (screen === 'forgot'){
+    loginIntro.textContent = 'Enter your email and we\u2019ll send you a reset link.';
+  } else {
+    loginIntro.textContent = 'Sign in with your admin account to continue.';
+  }
+}
+
+function showAdmin(session){
+  currentSession = session;
+  if (!isAdminSession(session)){
+    showLogin();
+    loginError.textContent = 'This account is authenticated but is not authorized as an admin.';
+    loginError.style.display = 'block';
+    return;
+  }
+  if (passwordSetPending){
+    // They have a valid session (from the invite/recovery link) but must
+    // choose a password before we let them into the dashboard.
+    loginOverlay.classList.remove('unlocked');
+    adminContainer.style.display = 'none';
+    showLoginScreen('setPassword');
+    return;
+  }
+  loginOverlay.classList.add('unlocked');
+  adminContainer.style.display = '';
+  loggedInAs.textContent = session?.user?.email ? `· ${session.user.email}` : '';
+  document.getElementById('myRoleLabel').textContent = getRole(session) || 'admin';
+  if (administratorsCard) administratorsCard.style.display = isOwnerSession(session) ? '' : 'none';
+  if (!adminInitialized){
+    adminInitialized = true;
+    init();
+  }
+}
+
+function showLogin(){
+  currentSession = null;
+  adminInitialized = false;
+  loginOverlay.classList.remove('unlocked');
+  adminContainer.style.display = 'none';
+  showLoginScreen('login');
+}
+
+// Lightweight client-side backoff after repeated failed sign-ins. This is
+// a courtesy speed bump only (it resets on page reload) — the real,
+// authoritative protection against brute-force login attempts is
+// Supabase Auth's own server-side rate limiting, which can't be bypassed
+// from the browser.
+let loginFailCount = 0;
+let loginLockedUntil = 0;
+function loginCooldownSeconds(){
+  if (loginFailCount < 3) return 0;
+  const steps = [5, 10, 20, 30, 60];
+  return steps[Math.min(loginFailCount - 3, steps.length - 1)];
+}
+
+loginForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const now = Date.now();
+  if (now < loginLockedUntil){
+    loginError.textContent = `Too many attempts. Please wait ${Math.ceil((loginLockedUntil - now) / 1000)}s and try again.`;
+    loginError.style.display = 'block';
+    return;
+  }
+
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Signing in...';
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Sign In';
+
+  if (error || !data.session){
+    loginFailCount++;
+    const cooldown = loginCooldownSeconds();
+    if (cooldown > 0){
+      loginLockedUntil = Date.now() + cooldown * 1000;
+      loginError.textContent = `Incorrect email or password. Please wait ${cooldown}s before trying again.`;
+    } else {
+      loginError.textContent = error?.message || 'Incorrect email or password.';
+    }
+    loginError.style.display = 'block';
+    document.getElementById('loginPassword').value = '';
+    return;
+  }
+  loginFailCount = 0;
+  loginError.style.display = 'none';
+  showAdmin(data.session);
+});
+
+/* ---- Forgot password ---- */
+btnForgotPassword.addEventListener('click', () => {
+  loginError.style.display = 'none';
+  forgotPasswordMessage.style.display = 'none';
+  document.getElementById('forgotEmail').value = document.getElementById('loginEmail').value.trim();
+  showLoginScreen('forgot');
+});
+btnBackToLogin.addEventListener('click', () => showLoginScreen('login'));
+
+forgotPasswordForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = document.getElementById('forgotEmail').value.trim();
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Sending...';
+
+  // Send them back to this same page (wherever it's hosted) with a
+  // recovery link; no need to know the site's URL in advance.
+  const redirectTo = window.location.origin + window.location.pathname;
+  await supabaseClient.auth.resetPasswordForEmail(email, { redirectTo });
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Send Reset Link';
+  // Same message whether or not the email exists, so this can't be used
+  // to check which emails have an account.
+  forgotPasswordMessage.style.color = 'var(--spruce)';
+  forgotPasswordMessage.textContent = 'If an account exists for that email, a reset link is on its way. Check your inbox.';
+  forgotPasswordMessage.style.display = 'block';
+});
+
+/* ---- Set password (used for both first-time invite acceptance and
+   password-reset links) ---- */
+setPasswordForm.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const newPass = document.getElementById('setPasswordNew').value;
+  const confirmPass = document.getElementById('setPasswordConfirm').value;
+  setPasswordError.style.display = 'none';
+
+  if (newPass.length < 12){
+    setPasswordError.textContent = 'Password must be at least 12 characters.';
+    setPasswordError.style.display = 'block';
+    return;
+  }
+  if (newPass !== confirmPass){
+    setPasswordError.textContent = 'Passwords do not match.';
+    setPasswordError.style.display = 'block';
+    return;
+  }
+
+  const submitBtn = e.target.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Saving...';
+
+  const { error } = await supabaseClient.auth.updateUser({ password: newPass });
+
+  submitBtn.disabled = false;
+  submitBtn.textContent = 'Set Password & Continue';
+
+  if (error){
+    setPasswordError.textContent = error.message || 'Could not set password. Please try again.';
+    setPasswordError.style.display = 'block';
+    return;
+  }
+
+  passwordSetPending = false;
+  // Strip the invite/recovery tokens from the address bar now that
+  // they've been used, so they can't be reused or accidentally shared.
+  window.history.replaceState(null, '', window.location.pathname);
+  showToast('Password set. Welcome!');
+  showAdmin(currentSession);
+});
+
+document.getElementById('btnLogout').addEventListener('click', async () => {
+  await supabaseClient.auth.signOut();
+});
+
+// Keep the UI in sync with the actual session (covers logout, expired
+// refresh tokens, or signing in from another tab).
+supabaseClient.auth.onAuthStateChange((event, session) => {
+  if (session){
+    showAdmin(session);
+  } else {
+    showLogin();
+  }
+});
+
+/* =====================================================
+   INITIALIZATION
+===================================================== */
+async function init(){
+  await loadCategories();
+  await loadItems();
+  await loadSettings();
+  await loadAdministrators();
+}
+
+// Initial check on page load (onAuthStateChange also fires once here,
+// but this avoids a flash of the login screen while that check runs).
+supabaseClient.auth.getSession().then(({ data }) => {
+  if (data.session) showAdmin(data.session);
+});
+</script>
+</body>
+</html>

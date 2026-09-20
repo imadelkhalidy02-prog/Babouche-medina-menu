@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>BABOUCHE — Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600&family=Work+Sans:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+  
+</head>
+<body>
+<div class="wrap">
+
+
+  <!-- Compact cart trigger: opens the full editable cart before checkout -->
+  <div class="cart-bar" id="cartBar" role="button" tabindex="0" aria-label="Open cart">
+    <div class="cart-summary">
+      <div class="cart-summary-left">
+        <div class="cart-bag" aria-hidden="true">
+          <svg viewBox="0 0 24 24"><path d="M5 8h14l-1 12H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>
+        </div>
+        <div>
+          <div class="cart-title" id="cartTitle">Your order</div>
+          <div class="cart-subtitle" id="cartSubtitle">Tap to review and modify</div>
+        </div>
+      </div>
+      <div style="text-align:right">
+        <div class="cart-total" id="cartTotal">0 dh</div>
+        <div class="cart-open-hint" id="cartOpenHint">Review cart ›</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="cart-sheet-backdrop" id="cartSheetBackdrop" aria-hidden="true">
+    <div class="cart-sheet" role="dialog" aria-modal="true" aria-labelledby="cartSheetTitle">
+      <div class="cart-sheet-handle"></div>
+      <div class="cart-sheet-head">
+        <div>
+          <div class="cart-sheet-title" id="cartSheetTitle">Your Order</div>
+          <div class="cart-sheet-count" id="cartSheetCount">0 items</div>
+        </div>
+        <button class="cart-close" id="cartClose" type="button" aria-label="Close cart">×</button>
+      </div>
+      <div class="cart-items" id="cartItemsList"></div>
+      <div class="cart-special">
+        <label for="specialRequests" id="specialRequestsLabel">Special requests, allergies...</label>
+        <textarea id="specialRequests" maxlength="500" placeholder="Special requests, allergies..."></textarea>
+      </div>
+      <div class="cart-totals">
+        <div class="cart-total-line"><span id="subtotalLabel">Subtotal</span><strong id="cartSubtotal">0 dh</strong></div>
+        <div class="cart-grand"><span id="totalLabel">Total</span><strong id="cartGrandTotal">0 dh</strong></div>
+      </div>
+      <div class="cart-checkout">
+        <input id="tableNumber" class="checkout-table" type="text" inputmode="numeric" maxlength="10" placeholder="Table number" aria-label="Table number">
+        <button id="sendOrderBtn" class="send-order-btn" type="button">Order via WhatsApp</button>
+        <div class="cart-note" id="cartNote">Review your items, then send your order on WhatsApp.</div>
+      </div>
+    </div>
+  </div>
+
+  <header>
+    <!-- Language buttons inside header -->
+    <div class="lang-switch">
+      <button class="lang-btn" data-lang="en"><span class="flag">🇬🇧</span> English</button>
+      <button class="lang-btn" data-lang="fr"><span class="flag">🇫🇷</span> Français</button>
+      <button class="lang-btn active" data-lang="es"><span class="flag">🇪🇸</span> Español</button>
+    </div>
+
+    <!-- BABOUCHE VECTOR LOGO -->
+    <svg class="logo-svg" viewBox="0 0 300 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path d="M110 115V80C110 80 110 50 150 25C190 50 190 80 190 80V115" stroke="#3D2A1D" stroke-width="2.5" stroke-linecap="round"/>
+      <path d="M142 22.5L150 15L158 22.5" stroke="#3D2A1D" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+      <line x1="88" y1="115" x2="110" y2="115" stroke="#3D2A1D" stroke-width="2.5" stroke-linecap="round"/>
+      <line x1="190" y1="115" x2="212" y2="115" stroke="#3D2A1D" stroke-width="2.5" stroke-linecap="round"/>
+
+      <path d="M150 38 L152 44 L158 44 L153 48 L155 54 L150 50 L145 54 L147 48 L142 44 L148 44 Z" stroke="#C29B38" stroke-width="1" fill="none"/>
+
+      <ellipse cx="150" cy="88" rx="16" ry="34" fill="#3D2A1D" stroke="#3D2A1D" stroke-width="1.5"/>
+      <path d="M150 58 C140 70 140 100 150 114 C160 100 160 70 150 58 Z" stroke="#C29B38" stroke-width="1" fill="none" stroke-dasharray="2 1.5"/>
+      <circle cx="150" cy="86" r="6" stroke="#C29B38" stroke-width="1" fill="none"/>
+      <path d="M150 82 L150 90 M146 86 L154 86" stroke="#C29B38" stroke-width="0.8"/>
+      <polygon points="150,118 152,121 150,124 148,121" fill="#C29B38"/>
+
+      <text x="150" y="156" font-family="'Fraunces', serif" font-size="28" font-weight="500" fill="#3D2A1D" text-anchor="middle" letter-spacing="3">BABOUCHE</text>
+
+      <line x1="60" y1="168" x2="240" y2="168" stroke="#C29B38" stroke-width="0.8"/>
+      <polygon points="150,166 153,168 150,170 147,168" fill="#C29B38"/>
+
+      <text x="150" y="185" font-family="'Work Sans', sans-serif" font-size="10" font-weight="500" fill="#3D2A1D" text-anchor="middle" letter-spacing="7">RESTAURANT</text>
+      <polygon points="150,193 152,195 150,197 148,195" fill="#C29B38"/>
+    </svg>
+  </header>
+
+  <!-- Sticky Quick-Nav Buttons -->
+  <div class="nav-bar">
+    <div class="nav-scroll" id="navScroll"></div>
+  </div>
+
+  <div id="menuSections">
+    <div class="menu-loading" id="menuLoading">Cargando el menú…</div>
+  </div>
+
+  <footer>
+    <div id="footerLine1">Todos los precios están indicados en Dirhams Marroquíes (DH).</div>
+    <div id="footerLine2"></div>
+
+    <div class="social">
+      <a id="socialGoogleMaps" href="https://maps.google.com" target="_blank" rel="noopener" aria-label="Google Maps" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 21s7-7.58 7-12a7 7 0 1 0-14 0c0 4.42 7 12 7 12z"/>
+          <circle cx="12" cy="9" r="2.5"/>
+        </svg>
+      </a>
+      <a id="socialInstagram" href="https://instagram.com/YOUR_PAGE" target="_blank" rel="noopener" aria-label="Instagram" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3.5" y="3.5" width="17" height="17" rx="5"/>
+          <circle cx="12" cy="12" r="3.6"/>
+          <circle cx="17.2" cy="6.8" r="0.9" fill="currentColor" stroke="none"/>
+        </svg>
+      </a>
+      <a id="socialTripadvisor" href="https://www.tripadvisor.com/YOUR_PAGE" target="_blank" rel="noopener" aria-label="TripAdvisor" style="display:none;">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M7 8.5C4.5 8.5 3 10.2 3 12s1.5 3.5 4 3.5 4-1.7 4-3.5-1.5-3.5-4-3.5z"/>
+          <path d="M17 8.5c-2.5 0-4 1.7-4 3.5s1.5 3.5 4 3.5 4-1.7 4-3.5-1.5-3.5-4-3.5z"/>
+          <circle cx="7" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+          <circle cx="17" cy="12" r="1.4" fill="currentColor" stroke="none"/>
+          <path d="M9.5 8.5 12 6l2.5 2.5"/>
+          <path d="M2 8.5h6M16 8.5h6"/>
+        </svg>
+      </a>
+    </div>
+
+    <a href="admin.html" class="admin-link" aria-label="Staff / Admin">Staff</a>
+  </footer>
+
+</div>
+
+<!-- WhatsApp contact button — number is controlled from admin.html (Restaurant Settings) -->
+<a href="#" id="whatsappFloat" class="whatsapp-float hidden" target="_blank" rel="noopener" aria-label="Contact us on WhatsApp">
+  <svg viewBox="0 0 32 32"><path d="M16.001 3C9.373 3 4 8.373 4 15.001c0 2.348.646 4.61 1.87 6.59L4 29l7.59-1.836a11.94 11.94 0 0 0 4.41.836H16c6.627 0 12-5.373 12-11.999C28 8.373 22.628 3 16.001 3zm0 21.6c-1.548 0-3.052-.415-4.36-1.198l-.313-.185-4.505 1.09 1.11-4.393-.204-.322a9.55 9.55 0 0 1-1.47-5.09c0-5.303 4.317-9.6 9.744-9.6 5.426 0 9.744 4.297 9.744 9.6 0 5.303-4.318 9.6-9.746 9.6zm5.34-7.19c-.29-.146-1.726-.851-1.994-.949-.267-.098-.461-.146-.656.146-.194.293-.752.949-.922 1.144-.17.195-.34.22-.63.073-.29-.146-1.224-.45-2.332-1.435-.862-.767-1.444-1.715-1.613-2.008-.169-.293-.018-.451.128-.596.131-.13.29-.34.436-.51.146-.17.194-.293.29-.488.097-.195.049-.366-.024-.512-.073-.146-.656-1.578-.899-2.163-.237-.568-.478-.491-.656-.5l-.559-.01c-.194 0-.51.073-.777.366-.267.293-1.02.997-1.02 2.43 0 1.434 1.045 2.82 1.19 3.015.146.195 2.057 3.14 4.985 4.404.696.3 1.24.48 1.663.615.699.222 1.335.19 1.838.115.561-.084 1.726-.706 1.97-1.388.243-.683.243-1.267.17-1.389-.073-.122-.267-.195-.556-.34z"/></svg>
+</a>
+
+<!-- Dish photo popup -->
+<div class="modal-backdrop" id="dishModal">
+  <div class="modal-card">
+    <button class="modal-close" id="modalClose" aria-label="Close">&times;</button>
+    <div class="modal-photo" id="modalPhoto">
+      <img id="modalImg" src="" alt="">
+    </div>
+    <div class="modal-body">
+      <div class="modal-name-row">
+        <div class="modal-name" id="modalName"></div>
+        <div class="modal-qty-wrap">
+          <span class="modal-qty-label" id="modalQtyLabel">Qty</span>
+          <button class="qty-step-btn" id="qtyMinus" type="button" aria-label="Decrease quantity">−</button>
+          <input class="qty-input modal-qty-input" id="modalQty" type="number" min="0" max="99" value="0" inputmode="numeric" aria-label="Quantity">
+          <button class="qty-step-btn" id="qtyPlus" type="button" aria-label="Increase quantity">+</button>
+        </div>
+      </div>
+      <div class="modal-desc" id="modalDesc"></div>
+      <div class="modal-price" id="modalPrice"></div>
+      <button class="modal-add-btn" id="modalAddBtn" type="button">Add</button>
+    </div>
+  </div>
+</div>
+
+    <script src="script.js" ></script>
+
+</body>
+</html>
